@@ -1,0 +1,13 @@
+{
+    "name": "omnipay/payco",
+    "description": "Payco gateway for Omnipay processing librery",
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "pruebasepayco",
+            "email": "ricardo.saldarriaga@payco.co"
+        }
+    ],
+    "require": {}
+}
