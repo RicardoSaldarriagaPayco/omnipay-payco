@@ -2,6 +2,16 @@
     "name": "omnipay/payco",
     "description": "Payco gateway for Omnipay processing librery",
     "type": "library",
+    "keywords": [
+        "gateway",
+        "merchant",
+        "omnipay",
+        "pay",
+        "payment",
+        "payco",
+        "purchase"
+    ],
+    "homepage": "https://github.com/pruebasepayco/omnipay-payco",
     "license": "MIT",
     "authors": [
         {
@@ -9,5 +19,16 @@
             "email": "ricardo.saldarriaga@payco.co"
         }
     ],
-    "require": {}
+    "autoload": {
+        "psr-4": { "Omnipay\\Payco\\" : "src/" }
+    },
+    "require": {
+        "omnipay/common": "^3"
+    }, 
+    "require-dev": {
+        "omnipay/tests": "^3",
+        "squizlabs/php_codesniffer": "^3",
+        "phpro/grumphp": "^0.14"
+    },
+    "prefer-stable": true
 }
