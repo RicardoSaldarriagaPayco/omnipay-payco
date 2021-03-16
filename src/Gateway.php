@@ -1,49 +1,94 @@
 <?php
-
 namespace Omnipay\Payco;
 
 use Omnipay\Common\AbstractGateway;
 
-
+/**
+ * Payco Gateway
+ *
+ * This gateway is useful for testing. It implements all the functions listed in \Omnipay\Common\GatewayInterface
+ * and allows both successful and failed responses based on the input.
+ *
+ * For authorize(), purchase(), and createCard() functions ...
+ *
+ *    Any card number which passes the Luhn algorithm and ends in an even number is authorized,
+ *    for example: 4242424242424242
+ *
+ *    Any card number which passes the Luhn algorithm and ends in an odd number is declined,
+ *    for example: 4111111111111111
+ *
+ * For capture(), completeAuthorize(), completePurchase(), refund(), and void() functions...
+ *    A transactionReference option is required. If the transactionReference contains 'fail', the
+ *    request fails. For any other values, the request succeeds
+ *
+ * For updateCard() and deleteCard() functions...
+ *    A cardReference field is required. If the cardReference contains 'fail', the
+ *    request fails. For all other values, it succeeds.
+ *
+ * ### Example
+ * <code>
+ * // Create a gateway for the Payco Gateway
+ * // (routes to GatewayFactory::create)
+ * $gateway = Omnipay::create('Payco');
+ *
+ * // Initialise the gateway
+ * $gateway->initialize(array(
+ *     'testMode' => true, // Doesn't really matter what you use here.
+ * ));
+ *
+ * // Create a credit card object
+ * // This card can be used for testing.
+ * $card = new CreditCard(array(
+ *             'firstName'    => 'Example',
+ *             'lastName'     => 'Customer',
+ *             'number'       => '4242424242424242',
+ *             'expiryMonth'  => '01',
+ *             'expiryYear'   => '2020',
+ *             'cvv'          => '123',
+ * ));
+ *
+ * // Do a purchase transaction on the gateway
+ * $transaction = $gateway->purchase(array(
+ *     'amount'                   => '10.00',
+ *     'currency'                 => 'AUD',
+ *     'card'                     => $card,
+ * ));
+ * $response = $transaction->send();
+ * if ($response->isSuccessful()) {
+ *     echo "Purchase transaction was successful!\n";
+ *     $sale_id = $response->getTransactionReference();
+ *     echo "Transaction reference = " . $sale_id . "\n";
+ * }
+ * </code>
+ */
 class Gateway extends AbstractGateway
 {
-    const BASE_URL = 'https://api.secure.payco.co';
-    const BASE_URL_SECURE = 'https://secure.payco.co';
-
     public function getName()
     {
         return 'Payco';
     }
+
     public function getDefaultParameters()
     {
         return array(
             'apiKey'     => '',
             'privateKey'       => '',
-            'lang'        => '',
-            'test'     => true,
+            'lenguage'        => '',
+            'testMode'     => false,
         );
     }
 
-    
     /**
-     * Get OAuth 2.0 client ID for the access token.
-     *
-     * Get an access token by using the OAuth 2.0 client_credentials
-     * token grant type with your ApiKey:secret as your Basic Auth
      * credentials.
      *
      * @return string
      */
     public function getApiKey()
     {
-        return $this->getParameter('ApiKey');
+        return $this->getParameter('apiKey');
     }
 
     /**
-     * Set OAuth 2.0 client ID for the access token.
-     *
-     * Get an access token by using the OAuth 2.0 client_credentials
-     * token grant type with your ApiKey:secret as your Basic Auth
      * credentials.
      *
      * @param string $value
@@ -51,28 +96,20 @@ class Gateway extends AbstractGateway
      */
     public function setApiKey($value)
     {
-        return $this->setParameter('ApiKey', $value);
+        return $this->setParameter('apiKey', $value);
     }
 
     /**
-     * Get OAuth 2.0 client ID for the access token.
-     *
-     * Get an access token by using the OAuth 2.0 client_credentials
-     * token grant type with your ApiKey:secret as your Basic Auth
      * credentials.
      *
      * @return string
      */
     public function getPrivateKey()
     {
-        return $this->getParameter('PrivateKey');
+        return $this->getParameter('privateKey');
     }
 
     /**
-     * Set OAuth 2.0 client ID for the access token.
-     *
-     * Get an access token by using the OAuth 2.0 client_credentials
-     * token grant type with your PrivateKey:secret as your Basic Auth
      * credentials.
      *
      * @param string $value
@@ -80,7 +117,28 @@ class Gateway extends AbstractGateway
      */
     public function setPrivateKey($value)
     {
-        return $this->setParameter('PrivateKey', $value);
+        return $this->setParameter('privateKey', $value);
+    }
+
+        /**
+     * credentials.
+     *
+     * @return string
+     */
+    public function getLenguage()
+    {
+        return $this->getParameter('lenguage');
+    }
+
+    /**
+     * credentials.
+     *
+     * @param string $value
+     * @return Gateway provides a fluent interface
+     */
+    public function setLenguage($value)
+    {
+        return $this->setParameter('lenguage', $value);
     }
 
      /**
@@ -91,29 +149,18 @@ class Gateway extends AbstractGateway
      */
     public function getToken($createIfNeeded = true)
     {
-        if ($createIfNeeded && !$this->hasToken()) {
+        if ($createIfNeeded) {
             $response = $this->createToken()->send();
             if ($response->isSuccessful()) {
                 $data = $response->getData();
                 if (isset($data['bearer_token'])) {
                     $this->setToken($data['bearer_token']);
-                    //$this->setTokenExpires(time() + $data['expires_in']);
+                    // $this->setTokenExpires(time() + $data['expires_in']);
                 }
             }
         }
 
-        return $this->getParameter('bearer_token');
-    }
-
-        /**
-     * Set OAuth 2.0 access token.
-     *
-     * @param string $value
-     * @return Gateway provides a fluent interface
-     */
-    public function setToken($value)
-    {
-        return $this->setParameter('bearer_token', $value);
+        return $this->getParameter('token');
     }
 
     /**
@@ -126,42 +173,78 @@ class Gateway extends AbstractGateway
         return $this->createRequest('\Omnipay\Payco\Message\RestTokenRequest', array());
     }
 
-    
-   /**
-     * Create Request
+    /**
+     * Set OAuth 2.0 access token.
      *
-     * This overrides the parent createRequest function ensuring that the OAuth
-     * 2.0 access token is passed along with the request data -- unless the
-     * request is a RestTokenRequest in which case no token is needed.  If no
-     * token is available then a new one is created (e.g. if there has been no
-     * token request or the current token has expired).
+     * @param string $value
+     * @return Gateway provides a fluent interface
+     */
+    public function setToken($value)
+    {
+        return $this->setParameter('token', $value);
+    }
+
+    
+    /**
+     * Create Request
      *
      * @param string $class
      * @param array $parameters
-     * @return \Omnipay\Payco\Message\AbstractRestRequest
      */
     public function createRequest($class, array $parameters = array())
     {
-            // This will set the internal token parameter which the parent
-            // createRequest will find when it calls getParameters().
-        $this->getToken(true);
+        if ($class != '\Omnipay\Payco\Message\RestTokenRequest') {
+            $this->getToken(true);
+        }
         return parent::createRequest($class, $parameters);
     }
+    public function authorize(array $parameters = array())
+    {
+        return $this->createRequest('\Omnipay\Payco\Message\RestAuthorizeRequest', $parameters);
+    }
 
-     /**
-     * Create a purchase request.
-     *
-     * Payco provides various payment related operations using the /payment
-     * resource and related sub-resources. Use payment for direct credit card
-     * payments and Payco account payments. You can also use sub-resources
-     * to get payment related details.
-     *
-     * @link https://developer.paypal.com/docs/api/#create-a-payment
-     * @param array $parameters
-     * @return \Omnipay\Payco\Message\RestPurchaseRequest
-     */
     public function purchase(array $parameters = array())
     {
-        return $this->createRequest('\Omnipay\Payco\Message\RestPurchaseRequest', $parameters);
+        return $this->createRequest('\Omnipay\Payco\Message\CreditCardRequest', $parameters);
+    }
+
+    public function completeAuthorize(array $parameters = array())
+    {
+        return $this->createRequest('\Omnipay\Payco\Message\TransactionReferenceRequest', $parameters);
+    }
+
+    public function capture(array $parameters = array())
+    {
+        return $this->createRequest('\Omnipay\Payco\Message\TransactionReferenceRequest', $parameters);
+    }
+
+    public function completePurchase(array $parameters = array())
+    {
+        return $this->createRequest('\Omnipay\Payco\Message\TransactionReferenceRequest', $parameters);
+    }
+
+    public function refund(array $parameters = array())
+    {
+        return $this->createRequest('\Omnipay\Payco\Message\TransactionReferenceRequest', $parameters);
+    }
+
+    public function void(array $parameters = array())
+    {
+        return $this->createRequest('\Omnipay\Payco\Message\TransactionReferenceRequest', $parameters);
+    }
+
+    public function createCard(array $parameters = array())
+    {
+        return $this->createRequest('\Omnipay\Payco\Message\CreditCardRequest', $parameters);
+    }
+
+    public function updateCard(array $parameters = array())
+    {
+        return $this->createRequest('\Omnipay\Payco\Message\CardReferenceRequest', $parameters);
+    }
+
+    public function deleteCard(array $parameters = array())
+    {
+        return $this->createRequest('\Omnipay\Payco\Message\CardReferenceRequest', $parameters);
     }
 }
